@@ -1,3 +1,11 @@
+/*
+ * Tool to convert between number radix.
+ *
+ * Usage: bconv [BASE] [NUMBER]
+ *
+ * BASE may be in the rage of 2-36, and NUMBER may not exceeded 2^64 - 1
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -8,7 +16,7 @@ void bconv(unsigned long base, long long num, char *p)
 {
     unsigned long long n; 
 
-    if(num < 0 && base != 2) {
+    if (num < 0 && base != 2) {
         n = (~num) + 1;
         *p++ = '-';
     } else
@@ -16,7 +24,7 @@ void bconv(unsigned long base, long long num, char *p)
 
     char *start = p;
 
-    while(n >= base) {
+    while (n >= base) {
         *p++ = SYMBOLS[n % base];
         n /= base;
     }
@@ -24,7 +32,7 @@ void bconv(unsigned long base, long long num, char *p)
 
     char *end = p;
     /* reverse the string */
-    while(start < end) {
+    while (start < end) {
         char c = *start;
         *start++ = *end--;
         *(end + 1) = c;
@@ -33,7 +41,7 @@ void bconv(unsigned long base, long long num, char *p)
 
 int main(int argc, char **argv)
 {
-    if(argc < 3) {
+    if (argc < 3) {
         fputs("bconv: [base] [number]\n", stderr);
         return EXIT_FAILURE;
     }
@@ -41,7 +49,7 @@ int main(int argc, char **argv)
     char printbuf[256] = {0}; /* hard to think of a 256 digit long number */
     long base = strtol(argv[1], NULL, 10);
 
-    if(base < 2 || base > 36) {
+    if (base < 2 || base > 36) {
         fputs("bconv: invalid base, try in the range 2-36\n", stderr);
         return EXIT_FAILURE;
     }

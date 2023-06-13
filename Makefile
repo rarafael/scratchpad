@@ -1,8 +1,29 @@
 include config.mk
 
-all:
-	@$(MAKE) -C bconv $@
+BINDIR=bin
+SRCDIR=src
+
+.PHONY: all clean
+all: $(BINDIR)\
+     $(BINDIR)/bconv\
+     $(BINDIR)/distroget
+
+install: all
+	$(INSTALL) -D $(BINDIR)/bconv $(BINPREFIX)/
+	$(INSTALL) -D $(BINDIR)/distroget $(BINPREFIX)/
+
+uninstall: $(BINPREFIX)/bconv\
+           $(BINPREFIX)/distroget
+	rm -i $^
+
 clean:
-	@$(MAKE) -C bconv $@
-install:
-	@$(MAKE) -C bconv $@
+	rm $(BINDIR)/*
+	rmdir $(BINDIR)
+
+$(BINDIR):
+	mkdir bin
+
+$(BINDIR)/bconv: $(SRCDIR)/bconv.c
+	$(CC) $(CFLAGS) $< -o $@
+$(BINDIR)/distroget: $(SRCDIR)/distroget.c
+	$(CC) $(CFLAGS) $< -o $@
