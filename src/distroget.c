@@ -5,6 +5,7 @@
  *
  * does not display used memory on MacOS.
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,36 +21,61 @@
 #include <sys/utsname.h>
 #include <pwd.h>
 
+#define PERR_AND_EXIT(S)        \
+    {                           \
+        perror(S);              \
+        exit(EXIT_FAILURE);     \
+    }
+
 #define DEFAULT_STRSIZE (1 << 7)
+#define SMALL_STRSIZE   (1 << 6)
+
+#define GENTOO_COLOUR   "\033[38;5;5m"
+#define GENERIC_COLOUR  "\033[38;5;15m"
+#define MACOS_COLOUR    "\033[38;5;13m"
+#define RESET_COLOUR    "\033[0m"
 
 static struct {
     char os[DEFAULT_STRSIZE];
     char uptime[DEFAULT_STRSIZE];
-    char user[DEFAULT_STRSIZE];
-    char shell[DEFAULT_STRSIZE];
-    char hostname[DEFAULT_STRSIZE];
+    char user[SMALL_STRSIZE];
+    char shell[SMALL_STRSIZE];
+    char hostname[SMALL_STRSIZE];
     unsigned long mem_total;
     unsigned long mem_used;
 #if (defined(__linux__) || defined(linux))
-    char distro[DEFAULT_STRSIZE];
+    char distro[SMALL_STRSIZE];
 #endif /* Linux */
+    char colour[SMALL_STRSIZE];
 } fetch;
 
 #if (defined(__linux__) || defined(linux))
-void getdistro(char *namestr)
+void getdistro(char *namestr, char *colourstr)
+#else /* MacOS */
+void getdistro(char *colourstr)
+#endif
 {
+#if (defined(__linux__) || defined(linux))
     FILE *fp = fopen("/etc/os-release", "r");
     if (!fp)
-        perror("distroget: getdistro");
+        PERR_AND_EXIT("distroget: getdistro");
 
     if (!fscanf(fp, "%*[^P]PRETTY_NAME=\"%[^\"]", namestr)) {
         fclose(fp);
-        perror("distroget: getdistro");
+        PERR_AND_EXIT("distroget: getdistro");
     }
 
     fclose(fp);
-}
+    
+    if(!strcmp(namestr, "Gentoo Linux")) {
+        strncpy(colourstr, GENTOO_COLOUR, SMALL_STRSIZE);
+        return;
+    }
+
+    strncpy(colourstr, GENERIC_COLOUR, SMALL_STRSIZE);
 #endif /* Linux */
+    strncpy(colourstr, MACOS_COLOUR, SMALL_STRSIZE);
+}
 
 void getuptime(char *uptimestr)
 {
@@ -57,12 +83,12 @@ void getuptime(char *uptimestr)
 #if (defined(__linux__) || defined(linux))
     struct sysinfo si;
     if (sysinfo(&si))
-        perror("distroget: getuptime");
+        PERR_AND_EXIT("distroget: getuptime");
     uptime = si.uptime;
 #else /* MacOS */
     size_t long_size = sizeof(long);
     if (sysctlbyname("kern.boottime", &uptime, &long_size, NULL, 0))
-        perror("distroget: getuptime");
+        PERR_AND_EXIT("distroget: getuptime");
 #endif /* Linux */
 
     struct tm *b_time = gmtime(&uptime);
@@ -85,7 +111,7 @@ void getos(char *namestr, char *hostnamestr)
 {
     struct utsname un;
     if (uname(&un))
-        perror("distroget: getos");
+        PERR_AND_EXIT("distroget: getos");
    
     char *p = un.sysname;
     while (*p != '\0')
@@ -118,13 +144,13 @@ void getmem(unsigned long *total, unsigned long *used)
 #if (defined(__linux__) || defined(linux))
     struct sysinfo si;
     if (sysinfo(&si))
-        perror("distroget: getmem");
+        PERR_AND_EXIT("distroget: getmem");
     *total = si.totalram >> 20;
     *used = *total - ((si.totalram - si.freeram) >> 20);
 #else /* MacOS */
     size_t long_size = sizeof(long);
     if (sysctlbyname("hw.memsize", total, &long_size, NULL, 0))
-        perror("distroget: getmem");
+        PERR_AND_EXIT("distroget: getmem");
     *total >>= 20;
     *used = 0; /* no way to get memory usage on MacOS? */
 #endif /* Linux */
@@ -137,23 +163,28 @@ int main(void)
     getpwd(fetch.user, fetch.shell);
     getmem(&fetch.mem_total, &fetch.mem_used);
 #if (defined(__linux__) || defined(linux))
-    getdistro(fetch.distro);
-#endif
+    getdistro(fetch.distro, fetch.colour);
+#else /* MacOS */
+    getdistro(fetch.colour);
+#endif /* Linux */
     fprintf(stdout,
-    "%13s@%s\n"
-    "          OS: %s\n"
+    "%s%13s%s@%s%s\n"
+    "          %sOS%s: %s\n"
 #if (defined(__linux__) || defined(linux))
-    "      Distro: %s\n"
-#endif
-    "      Uptime: %s\n"
-    "  User Shell: %s\n"
-    "      Memory: %luMiB/%luMiB (%ld%%)\n",
-    fetch.user, fetch.hostname, fetch.os,
+    "      %sDistro%s: %s\n"
+#endif /* Linux */
+    "      %sUptime%s: %s\n"
+    "  %sUser Shell%s: %s\n"
+    "      %sMemory%s: %luMiB/%luMiB (%ld%%)\n",
+    fetch.colour, fetch.user, RESET_COLOUR, fetch.colour, fetch.hostname,
+    fetch.colour, RESET_COLOUR, fetch.os,
 #if (defined(__linux__) || defined(linux))
-    fetch.distro,
-#endif
-    fetch.uptime, fetch.shell,
-    fetch.mem_total, fetch.mem_used,
+    fetch.colour, RESET_COLOUR, fetch.distro,
+#endif /* Linux */
+    fetch.colour, RESET_COLOUR, fetch.uptime,
+    fetch.colour, RESET_COLOUR, fetch.shell,
+    fetch.colour, RESET_COLOUR, fetch.mem_total, fetch.mem_used,
     fetch.mem_total / fetch.mem_used);
+
     return EXIT_SUCCESS;
 }
