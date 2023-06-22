@@ -28,7 +28,6 @@
     }
 
 #define DEFAULT_STRSIZE (1 << 7)
-#define SMALL_STRSIZE   (1 << 6)
 
 #define GENTOO_COLOUR   "\033[38;5;5m"
 #define GENERIC_COLOUR  "\033[38;5;15m"
@@ -38,15 +37,16 @@
 static struct {
     char os[DEFAULT_STRSIZE];
     char uptime[DEFAULT_STRSIZE];
-    char user[SMALL_STRSIZE];
-    char shell[SMALL_STRSIZE];
-    char hostname[SMALL_STRSIZE];
+    char user[DEFAULT_STRSIZE];
+    char shell[DEFAULT_STRSIZE];
+    char hostname[DEFAULT_STRSIZE];
+    char cpuname[DEFAULT_STRSIZE];
     unsigned long mem_total;
     unsigned long mem_used;
 #if (defined(__linux__) || defined(linux))
-    char distro[SMALL_STRSIZE];
+    char distro[DEFAULT_STRSIZE];
 #endif /* Linux */
-    char colour[SMALL_STRSIZE];
+    char colour[DEFAULT_STRSIZE];
 } fetch;
 
 #if (defined(__linux__) || defined(linux))
@@ -67,14 +67,14 @@ void getdistro(char *colourstr)
 
     fclose(fp);
     
-    if(!strcmp(namestr, "Gentoo Linux")) {
-        strncpy(colourstr, GENTOO_COLOUR, SMALL_STRSIZE);
+    if (!strcmp(namestr, "Gentoo Linux")) {
+        strncpy(colourstr, GENTOO_COLOUR, DEFAULT_STRSIZE);
         return;
     }
 
-    strncpy(colourstr, GENERIC_COLOUR, SMALL_STRSIZE);
+    strncpy(colourstr, GENERIC_COLOUR, DEFAULT_STRSIZE);
 #endif /* Linux */
-    strncpy(colourstr, MACOS_COLOUR, SMALL_STRSIZE);
+    strncpy(colourstr, MACOS_COLOUR, DEFAULT_STRSIZE);
 }
 
 void getuptime(char *uptimestr)
@@ -142,11 +142,21 @@ void getpwd(char *namestr, char *shellstr)
 void getmem(unsigned long *total, unsigned long *used)
 {
 #if (defined(__linux__) || defined(linux))
-    struct sysinfo si;
-    if (sysinfo(&si))
+    FILE *fp = fopen("/proc/meminfo", "r");
+    if (!fscanf(fp, "MemTotal:\t%lu", total)) {
+        fclose(fp);
         PERR_AND_EXIT("distroget: getmem");
-    *total = si.totalram >> 20;
-    *used = *total - ((si.totalram - si.freeram) >> 20);
+    }
+    *total >>= 10;
+
+    if (!fscanf(fp, "%*[^A]Available:\t%lu", used)) {
+        fclose(fp);
+        PERR_AND_EXIT("distroget: getmem");
+    }
+    *used >>= 10;
+
+    *used = *total - *used;
+    fclose(fp);
 #else /* MacOS */
     size_t long_size = sizeof(long);
     if (sysctlbyname("hw.memsize", total, &long_size, NULL, 0))
@@ -183,8 +193,8 @@ int main(void)
 #endif /* Linux */
     fetch.colour, RESET_COLOUR, fetch.uptime,
     fetch.colour, RESET_COLOUR, fetch.shell,
-    fetch.colour, RESET_COLOUR, fetch.mem_total, fetch.mem_used,
-    fetch.mem_total / fetch.mem_used);
+    fetch.colour, RESET_COLOUR, fetch.mem_used, fetch.mem_total,
+    (long)(((float)(fetch.mem_used) / (float)(fetch.mem_total)) * 100));
 
     return EXIT_SUCCESS;
 }

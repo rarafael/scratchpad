@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* symbol list up to base 36 */
 const char *const SYMBOLS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -54,7 +55,14 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    long long num = strtoll(argv[2], NULL, 0);
+    long long num = 0;
+    if (strlen(argv[2]) > 2) {
+        if (argv[2][0] == '0' && argv[2][1] == 'b')
+            num = strtoll(argv[2] + 2, NULL, 2);
+        else
+            num = strtoll(argv[2], NULL, 0);
+    } else
+        num = strtoll(argv[2], NULL, 0);
     
     bconv(base, num, &printbuf[0]); 
 
