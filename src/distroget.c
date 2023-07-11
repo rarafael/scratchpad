@@ -40,7 +40,6 @@ static struct {
     char user[DEFAULT_STRSIZE];
     char shell[DEFAULT_STRSIZE];
     char hostname[DEFAULT_STRSIZE];
-    char cpuname[DEFAULT_STRSIZE];
     unsigned long mem_total;
     unsigned long mem_used;
 #if (defined(__linux__) || defined(linux))
@@ -172,11 +171,13 @@ int main(void)
     getuptime(fetch.uptime);
     getpwd(fetch.user, fetch.shell);
     getmem(&fetch.mem_total, &fetch.mem_used);
+
 #if (defined(__linux__) || defined(linux))
     getdistro(fetch.distro, fetch.colour);
 #else /* MacOS */
     getdistro(fetch.colour);
 #endif /* Linux */
+
     fprintf(stdout,
     "%s%13s%s@%s%s\n"
     "          %sOS%s: %s\n"
@@ -186,6 +187,7 @@ int main(void)
     "      %sUptime%s: %s\n"
     "  %sUser Shell%s: %s\n"
     "      %sMemory%s: %luMiB/%luMiB (%ld%%)\n",
+
     fetch.colour, fetch.user, RESET_COLOUR, fetch.colour, fetch.hostname,
     fetch.colour, RESET_COLOUR, fetch.os,
 #if (defined(__linux__) || defined(linux))
